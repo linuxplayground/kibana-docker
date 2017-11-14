@@ -17,7 +17,7 @@ LABEL maintainer "Elastic Docker Team <docker@elastic.co>"
 EXPOSE 5601
 
 # Add Reporting dependencies.
-RUN yum update -y && yum install -y fontconfig freetype && yum clean all
+RUN yum update -y && yum install -y fontconfig freetype unzip && yum clean all
 
 WORKDIR /usr/share/kibana
 RUN curl -Ls {{ url_root }}/kibana-{{ elastic_version }}-linux-x86_64.tar.gz | tar --strip-components=1 -zxf - && \
@@ -44,5 +44,13 @@ RUN groupadd --gid 1000 kibana && \
 USER kibana
 {% if image_flavor != 'oss' %}
 RUN kibana-plugin install {{ x_pack }}
+{% endif %}
+# Install custom plugins
+{% if image_flavor == 'oss' %}
+RUN kibana-plugin install https://github.com/prelert/kibana-swimlane-vis/releases/download/v{{ elastic_version }}/prelert_swimlane_vis-{{ elastic_version }}.zip
+RUN curl -o /tmp/kibana-plugin-metric-percent.zip -L https://github.com/amannocci/kibana-plugin-metric-percent/archive/master.zip && \
+    cd /usr/share/kibana/plugins && \
+    unzip /tmp/kibana-plugin-metric-percent.zip && \
+    sed -i '/"version":/ s/"version":[^,]*/"version":"{{ elastic_version }}"/'  kibana-plugin-metric-percent-master/package.json
 {% endif %}
 CMD ["/bin/bash", "/usr/local/bin/kibana-docker"]
